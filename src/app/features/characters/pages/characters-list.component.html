@@ -1,0 +1,6 @@
+<h1 class="text-xl font-bold mb-4">Characters</h1>
+    <ul>
+      @for(char of characters$ | async; track char.url){
+        <li>{{ char.name }} ({{ char.birth_year }})</li>
+      }
+    </ul>
