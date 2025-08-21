@@ -1,67 +1,26 @@
 <div class="p-6 space-y-8">
-  @if (film$ | async; as film) {
-    <h1 class="text-3xl font-bold">{{ film.title }}</h1>
-    <p class="text-gray-500">Episode {{ film.episode_id }} • {{ film.release_date }}</p>
-    <p class="mt-4">{{ film.opening_crawl }}</p>
+  @if (film(); as f) {
+    <h1 class="text-3xl font-bold">{{ f.title }}</h1>
+    <p class="text-gray-500">Episode {{ f.episode_id }} | {{ f.release_date }}</p>
+    <p class="mt-4">{{ f.opening_crawl }}</p>
 
-    <!-- Characters -->
-    <section>
-      <h2 class="text-2xl font-semibold mb-2">Characters</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @for (c of characters$ | async; track c.name) {
-          <div class="p-3 bg-gray-100 rounded">
-            {{ c.name }}
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Planets -->
-    <section>
-      <h2 class="text-2xl font-semibold mb-2">Planets</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @for (p of planets$ | async; track p.name) {
-          <div class="p-3 bg-gray-100 rounded">
-            {{ p.name }}
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Species -->
-    <section>
-      <h2 class="text-2xl font-semibold mb-2">Species</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @for (s of species$ | async; track s.name) {
-          <div class="p-3 bg-gray-100 rounded">
-            {{ s.name }}
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Starships -->
-    <section>
-      <h2 class="text-2xl font-semibold mb-2">Starships</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @for (sh of starships$ | async; track sh.name) {
-          <div class="p-3 bg-gray-100 rounded">
-            {{ sh.name }}
-          </div>
-        }
-      </div>
-    </section>
-
-    <!-- Vehicles -->
-    <section>
-      <h2 class="text-2xl font-semibold mb-2">Vehicles</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        @for (v of vehicles$ | async; track v.name) {
-          <div class="p-3 bg-gray-100 rounded">
-            {{ v.name }}
-          </div>
-        }
-      </div>
-    </section>
+     @for (section of sections; track section.title) {
+      <section>
+        <h2 class="text-2xl font-semibold mb-2">{{ section.title }}</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          @for (item of section.data(); track item.url) {
+            <div
+              class="p-3 bg-gray-100 rounded"
+              [class.cursor-pointer]="section.clickable"
+              (click)="section.clickable && goToDetail(section.type, item)"
+            >
+              {{ item.name || item.title }}
+            </div>
+          }
+        </div>
+      </section>
+    }
   }
 </div>
+
+<router-outlet></router-outlet>

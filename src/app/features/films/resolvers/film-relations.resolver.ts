@@ -1,8 +1,8 @@
 import { inject } from '@angular/core';
-import { ResolveFn, ActivatedRouteSnapshot } from '@angular/router';
+import { ResolveFn, ActivatedRouteSnapshot, Router,  RedirectCommand } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { of, forkJoin } from 'rxjs';
-import { filter, first, switchMap, catchError } from 'rxjs/operators';
+import { filter, first, switchMap, catchError, mapTo } from 'rxjs/operators';
 
 import { selectFilmById } from '../store/films.selectors';
 
@@ -14,6 +14,7 @@ import { SpeciesDataService } from '../../species/services/Species-data.service'
 
 export const FilmRelationsResolver: ResolveFn<boolean> = (route: ActivatedRouteSnapshot) => {
   const store = inject(Store);
+  const router = inject<Router>(Router);
 
   const characterService = inject(CharacterDataService);
   const planetService = inject(PlanetDataService);
@@ -21,16 +22,23 @@ export const FilmRelationsResolver: ResolveFn<boolean> = (route: ActivatedRouteS
   const starshipService = inject(StarshipDataService);
   const vehicleService = inject(VehicleDataService);
 
-  const filmId = route.paramMap.get('id')!;
+  const filmId = route.paramMap.get('id');
+
+  if (!filmId) {
+    return new RedirectCommand (router.createUrlTree(['/films'])); // ✅ compatible with ResolveFn<boolean>
+  }
 
   return store.select(selectFilmById(filmId)).pipe(
-    filter(film => !!film),
+    filter((film): film is NonNullable<typeof film> => !!film),
     first(),
     switchMap(film => {
-      if (!film) return of(true);
-
-      // We now assume these arrays are plain IDs, e.g., ['1', '2', '3']
-      const { characters = [], planets = [], species = [], starships = [], vehicles = [] } = film;
+      const {
+        characters = [],
+        planets = [],
+        species = [],
+        starships = [],
+        vehicles = []
+      } = film;
 
       return forkJoin([
         characterService.getMany(characters).pipe(catchError(() => of([]))),
@@ -38,10 +46,42 @@ export const FilmRelationsResolver: ResolveFn<boolean> = (route: ActivatedRouteS
         speciesService.getMany(species).pipe(catchError(() => of([]))),
         starshipService.getMany(starships).pipe(catchError(() => of([]))),
         vehicleService.getMany(vehicles).pipe(catchError(() => of([])))
-      ]).pipe(
-        first(),
-        switchMap(() => of(true))
-      );
+      ]).pipe(switchMap(() => of(true)));
     })
   );
 };
+
+// export const FilmRelationsResolver: ResolveFn<boolean> = (route: ActivatedRouteSnapshot) => {
+//   const store = inject(Store);
+
+//   const characterService = inject(CharacterDataService);
+//   const planetService = inject(PlanetDataService);
+//   const speciesService = inject(SpeciesDataService);
+//   const starshipService = inject(StarshipDataService);
+//   const vehicleService = inject(VehicleDataService);
+
+//   const filmId = route.paramMap.get('id')!;
+
+//   return store.select(selectFilmById(filmId)).pipe(
+//     filter(film => !!film),
+//     first(),
+//     switchMap(film => {
+//       if (!film) return of(true);
+
+//       // We now assume these arrays are plain IDs, e.g., ['1', '2', '3']
+//       const { characters = [], planets = [], species = [], starships = [], vehicles = [] } = film;
+
+//       // preloads all relations in parallel via forkJoin.
+//       return forkJoin([
+//         characterService.getMany(characters).pipe(catchError(() => of([]))),
+//         planetService.getMany(planets).pipe(catchError(() => of([]))),
+//         speciesService.getMany(species).pipe(catchError(() => of([]))),
+//         starshipService.getMany(starships).pipe(catchError(() => of([]))),
+//         vehicleService.getMany(vehicles).pipe(catchError(() => of([])))
+//       ]).pipe(
+//         first(),
+//         switchMap(() => of(true))
+//       );
+//     })
+//   );
+// };

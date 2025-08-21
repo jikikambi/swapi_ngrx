@@ -13,7 +13,7 @@ export class VehicleDataService extends BaseDataService<Vehicle> {
   }
 
   override getAll(): Observable<Vehicle[]> {
-    return super.getAll().pipe(map(chars => chars.map(normalizeVehicle)));
+    return super.getAll().pipe(map(vehicles => vehicles.map(normalizeVehicle)));
   }
 
   override getById(id: string): Observable<Vehicle> {

@@ -13,7 +13,7 @@ export class SpeciesDataService extends BaseDataService<Species> {
   }
 
   override getAll(): Observable<Species[]> {
-    return super.getAll().pipe(map(chars => chars.map(normalizeSpecies)));
+    return super.getAll().pipe(map(species => species.map(normalizeSpecies)));
   }
 
   override getById(id: string): Observable<Species> {

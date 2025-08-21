@@ -13,7 +13,7 @@ export class StarshipDataService extends BaseDataService<Starship> {
   }
 
   override getAll(): Observable<Starship[]> {
-    return super.getAll().pipe(map(chars => chars.map(normalizeStarship)));
+    return super.getAll().pipe(map(starships => starships.map(normalizeStarship)));
   }
 
   override getById(id: string): Observable<Starship> {

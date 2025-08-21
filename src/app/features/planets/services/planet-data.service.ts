@@ -13,7 +13,7 @@ export class PlanetDataService extends BaseDataService<Planet> {
   }
 
   override getAll(): Observable<Planet[]> {
-    return super.getAll().pipe(map(chars => chars.map(normalizePlanet)));
+    return super.getAll().pipe(map(planets => planets.map(normalizePlanet)));
   }
 
   override getById(id: string): Observable<Planet> {

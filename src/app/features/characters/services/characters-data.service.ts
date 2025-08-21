@@ -14,7 +14,7 @@ export class CharacterDataService extends BaseDataService<Character> {
 
   override getAll(): Observable<Character[]> {
     return super.getAll().pipe(
-      map(chars => chars.map(normalizeCharacter))
+      map(characters => characters.map(normalizeCharacter))
     );
   }
 
