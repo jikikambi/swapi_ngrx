@@ -61,9 +61,21 @@ export class CharacterDetailComponent {
   }
 
   goBack() {
-  const filmId = this.route.parent?.snapshot.paramMap.get('id');
-  this.router.navigate(['/films', filmId]);
-}
+    // try to read navigation state
+    const from = history.state?.from as string | undefined;
+
+    if (from) {
+      this.router.navigateByUrl(from);
+    } else {
+      // fallback: rebuild from parent params
+      const filmId = this.route.parent?.snapshot.paramMap.get('id');
+      if (filmId) {
+        this.router.navigate(['/films', filmId]);
+      } else {
+        this.router.navigate(['/films']);
+      }
+    }
+  }
 
 
   protected extractId = extractSwapiId;

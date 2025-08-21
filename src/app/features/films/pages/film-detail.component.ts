@@ -13,11 +13,20 @@ import { selectFilmById } from '../store/films.selectors';
 import { CommonModule } from '@angular/common';
 import { extractSwapiId } from '../../../shared/utils/swapi.utils';
 
+import {
+  trigger,
+  state,
+  style,
+  transition,
+  animate
+} from '@angular/animations';
+
 interface Section<T> {
   title: string;
   data: WritableSignal<T[]>;
   type: string;
   clickable: boolean;
+  expanded: boolean;
 }
 
 @Component({
@@ -25,45 +34,77 @@ interface Section<T> {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './film-detail.component.html',
-  styleUrls: ['./film-detail.component.scss']
+  styleUrls: ['./film-detail.component.scss'],
+  animations: [
+    trigger('expandCollapse', [
+      state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
+      state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
+      transition('expanded <=> collapsed', animate('300ms ease-in-out')),
+    ]),
+  ]
+  // animations: [
+  //   trigger('expandCollapse', [
+  //     state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
+  //     state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
+  //     transition('expanded <=> collapsed', animate('300ms ease-in-out')),
+  //   ]),
+  //   trigger('rotateIcon', [
+  //     state('expanded', style({ transform: 'rotate(180deg)' })),
+  //     state('collapsed', style({ transform: 'rotate(0deg)' })),
+  //     transition('expanded <=> collapsed', animate('300ms ease-in-out')),
+  //   ])
+  // ]
 })
 export class FilmDetailComponent {
+
   private route = inject(ActivatedRoute);
   private store = inject(Store);
   private serviceFactory = inject(EntityCollectionServiceFactory);
   private router = inject(Router);
 
-  /** Film signal (from store selector) */
   film = toSignal(
     this.store.select(selectFilmById(this.route.snapshot.paramMap.get('id')!)),
     { initialValue: null }
   );
 
-  /** Sections config (plain array, but each has a reactive data signal) */
   sections: Section<any>[] = [
-    { title: 'Characters', data: this.createEntitiesSignal<Character>('Character', 'characters'), type: 'character', clickable: true },
-    { title: 'Planets',    data: this.createEntitiesSignal<Planet>('Planet', 'planets'),         type: 'planet',   clickable: false },
-    { title: 'Species',   data: this.createEntitiesSignal<Species>('Species', 'species'),       type: 'species',  clickable: false },
-    { title: 'Starships', data: this.createEntitiesSignal<Starship>('Starship', 'starships'),   type: 'starship', clickable: true },
-    { title: 'Vehicles',  data: this.createEntitiesSignal<Vehicle>('Vehicle', 'vehicles'),      type: 'vehicle',  clickable: false },
+    { title: 'Characters', data: this.createEntitiesSignal<Character>('Character', 'characters'), type: 'character', clickable: true, expanded: true },
+    { title: 'Planets', data: this.createEntitiesSignal<Planet>('Planet', 'planets'), type: 'planet', clickable: false, expanded: false },
+    { title: 'Species', data: this.createEntitiesSignal<Species>('Species', 'species'), type: 'species', clickable: false, expanded: false },
+    { title: 'Starships', data: this.createEntitiesSignal<Starship>('Starship', 'starships'), type: 'starship', clickable: true, expanded: false },
+    { title: 'Vehicles', data: this.createEntitiesSignal<Vehicle>('Vehicle', 'vehicles'), type: 'vehicle', clickable: false, expanded: false }
   ];
 
-  /** Navigate to related detail */
+  /** Toggle single section */
+  toggleSection(section: Section<any>) {
+    section.expanded = !section.expanded;
+  }
+
+  /** Expand all */
+  expandAll() {
+    this.sections.forEach(s => (s.expanded = true));
+  }
+
+  /** Collapse all */
+  collapseAll() {
+    this.sections.forEach(s => (s.expanded = false));
+  }
+
+  /** Navigate to detail */
   goToDetail(entityType: string, entity: { url: string }) {
     const filmId = this.route.snapshot.paramMap.get('id');
     const entityId = extractSwapiId(entity.url);
-    this.router.navigate(['/films', filmId, entityType.toLowerCase() + 's', entityId]);
+    this.router.navigate(
+      ['/films', filmId, entityType.toLowerCase() + 's', entityId],
+      { state: { from: `/films/${filmId}` } }
+    );
   }
 
-  /** Create a reactive signal for related entities */
   private createEntitiesSignal<T>(entityName: string, filmProp: keyof Film): WritableSignal<T[]> {
     const service = this.serviceFactory.create<T>(entityName);
     const data = signal<T[]>([]);
-
-    // Subscribe once to entities$ (no reactive loop)
     const entitiesSig = toSignal(service.entities$, { initialValue: [] });
 
-    // Update whenever film or entities change
     effect(() => {
       const filmValue = this.film();
       const entities = entitiesSig();
@@ -78,9 +119,7 @@ export class FilmDetailComponent {
       data.set(filtered);
     });
 
-    // Ensure service loads entities
     service.getAll();
-
     return data;
   }
 }

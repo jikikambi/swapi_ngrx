@@ -2,6 +2,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { isDevMode, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
+import { provideAnimations } from '@angular/platform-browser/animations'; 
 
 import { provideStore } from '@ngrx/store';
 import { provideEffects } from '@ngrx/effects';
@@ -26,6 +27,8 @@ import { provideCustomDataServices } from './app/shared/utils/provide-custom-dat
 bootstrapApplication(AppComponent, {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
+
+    provideAnimations(),
 
     // Core Angular providers
     provideHttpClient(),
