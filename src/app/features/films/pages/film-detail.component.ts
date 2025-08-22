@@ -1,8 +1,9 @@
-import { Component, effect, inject, signal, WritableSignal } from '@angular/core';
+import { Component, inject, signal, WritableSignal, computed } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { EntityCollectionServiceFactory } from '@ngrx/data';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { CommonModule } from '@angular/common';
 import { Film } from '../../../store/models/films.models';
 import { Character } from '../../../store/models/characters.models';
 import { Planet } from '../../../store/models/planets.models';
@@ -10,24 +11,10 @@ import { Species } from '../../../store/models/species.models';
 import { Starship } from '../../../store/models/starships.model';
 import { Vehicle } from '../../../store/models/vehicles.models';
 import { selectFilmById } from '../store/films.selectors';
-import { CommonModule } from '@angular/common';
+import { expandCollapse } from '../../../shared/animations/expand-collapse.animation';
+import { createEntitySection } from '../../../shared/utils/entity-signals.utils';
+import { Section } from '../../../shared/utils/Section';
 import { extractSwapiId } from '../../../shared/utils/swapi.utils';
-
-import {
-  trigger,
-  state,
-  style,
-  transition,
-  animate
-} from '@angular/animations';
-
-interface Section<T> {
-  title: string;
-  data: WritableSignal<T[]>;
-  type: string;
-  clickable: boolean;
-  expanded: boolean;
-}
 
 @Component({
   selector: 'app-film-details',
@@ -35,25 +22,7 @@ interface Section<T> {
   imports: [CommonModule, RouterModule],
   templateUrl: './film-detail.component.html',
   styleUrls: ['./film-detail.component.scss'],
-  animations: [
-    trigger('expandCollapse', [
-      state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
-      state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
-      transition('expanded <=> collapsed', animate('300ms ease-in-out')),
-    ]),
-  ]
-  // animations: [
-  //   trigger('expandCollapse', [
-  //     state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
-  //     state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
-  //     transition('expanded <=> collapsed', animate('300ms ease-in-out')),
-  //   ]),
-  //   trigger('rotateIcon', [
-  //     state('expanded', style({ transform: 'rotate(180deg)' })),
-  //     state('collapsed', style({ transform: 'rotate(0deg)' })),
-  //     transition('expanded <=> collapsed', animate('300ms ease-in-out')),
-  //   ])
-  // ]
+  animations: [expandCollapse]
 })
 export class FilmDetailComponent {
 
@@ -62,35 +31,37 @@ export class FilmDetailComponent {
   private serviceFactory = inject(EntityCollectionServiceFactory);
   private router = inject(Router);
 
+  /** Signal for the current film */
   film = toSignal(
     this.store.select(selectFilmById(this.route.snapshot.paramMap.get('id')!)),
     { initialValue: null }
   );
 
+  /** Collapsible sections for related entities */
   sections: Section<any>[] = [
-    { title: 'Characters', data: this.createEntitiesSignal<Character>('Character', 'characters'), type: 'character', clickable: true, expanded: true },
-    { title: 'Planets', data: this.createEntitiesSignal<Planet>('Planet', 'planets'), type: 'planet', clickable: false, expanded: false },
-    { title: 'Species', data: this.createEntitiesSignal<Species>('Species', 'species'), type: 'species', clickable: false, expanded: false },
-    { title: 'Starships', data: this.createEntitiesSignal<Starship>('Starship', 'starships'), type: 'starship', clickable: true, expanded: false },
-    { title: 'Vehicles', data: this.createEntitiesSignal<Vehicle>('Vehicle', 'vehicles'), type: 'vehicle', clickable: false, expanded: false }
+    createEntitySection<Film, Character, 'characters'>(this.serviceFactory, 'Character', () => this.film(), 'characters', 'character', true),
+    createEntitySection<Film, Planet, 'planets'>(this.serviceFactory, 'Planet', () => this.film(), 'planets', 'planet'),
+    createEntitySection<Film, Species, 'species'>(this.serviceFactory, 'Species', () => this.film(), 'species', 'species'),
+    createEntitySection<Film, Starship, 'starships'>(this.serviceFactory, 'Starship', () => this.film(), 'starships', 'starship'),
+    createEntitySection<Film, Vehicle, 'vehicles'>(this.serviceFactory, 'Vehicle', () => this.film(), 'vehicles', 'vehicle')
   ];
 
-  /** Toggle single section */
+  /** Toggle a single section open/closed */
   toggleSection(section: Section<any>) {
     section.expanded = !section.expanded;
   }
 
-  /** Expand all */
+  /** Expand all sections */
   expandAll() {
-    this.sections.forEach(s => (s.expanded = true));
+    this.sections.forEach(s => s.expanded = true);
   }
 
-  /** Collapse all */
+  /** Collapse all sections */
   collapseAll() {
-    this.sections.forEach(s => (s.expanded = false));
+    this.sections.forEach(s => s.expanded = false);
   }
 
-  /** Navigate to detail */
+  /** Navigate to entity detail */
   goToDetail(entityType: string, entity: { url: string }) {
     const filmId = this.route.snapshot.paramMap.get('id');
     const entityId = extractSwapiId(entity.url);
@@ -98,28 +69,5 @@ export class FilmDetailComponent {
       ['/films', filmId, entityType.toLowerCase() + 's', entityId],
       { state: { from: `/films/${filmId}` } }
     );
-  }
-
-  private createEntitiesSignal<T>(entityName: string, filmProp: keyof Film): WritableSignal<T[]> {
-    const service = this.serviceFactory.create<T>(entityName);
-    const data = signal<T[]>([]);
-    const entitiesSig = toSignal(service.entities$, { initialValue: [] });
-
-    effect(() => {
-      const filmValue = this.film();
-      const entities = entitiesSig();
-
-      if (!filmValue || !Array.isArray(filmValue[filmProp])) {
-        data.set([]);
-        return;
-      }
-
-      const ids = (filmValue[filmProp] as string[]).map(extractSwapiId);
-      const filtered = entities.filter(e => ids.includes(extractSwapiId((e as any).url)));
-      data.set(filtered);
-    });
-
-    service.getAll();
-    return data;
   }
 }

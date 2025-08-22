@@ -1,82 +1,77 @@
-import { CommonModule } from "@angular/common";
-import { Component, inject, WritableSignal, signal } from "@angular/core";
-import { ActivatedRoute, Router, RouterModule } from "@angular/router";
-import { EntityCollectionServiceFactory } from "@ngrx/data";
-import { Character } from "../../../store/models/characters.models";
-import { Starship } from "../../../store/models/starships.model";
-import { extractSwapiId } from "../../../shared/utils/swapi.utils";
+import { Component, inject, signal, WritableSignal, computed, effect } from '@angular/core';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { EntityCollectionServiceFactory } from '@ngrx/data';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { CommonModule } from '@angular/common';
+
+import { Character } from '../../../store/models/characters.models';
+import { Film } from '../../../store/models/films.models';
+import { Planet } from '../../../store/models/planets.models';
+import { Species } from '../../../store/models/species.models';
+import { Starship } from '../../../store/models/starships.model';
+import { Vehicle } from '../../../store/models/vehicles.models';
+
+import { extractSwapiId } from '../../../shared/utils/swapi.utils';
+import { Section } from '../../../shared/utils/Section';
+import { createEntitySection } from '../../../shared/utils/entity-signals.utils';
+import { expandCollapse } from '../../../shared/animations/expand-collapse.animation';
 
 @Component({
   selector: 'app-character-details',
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './character-detail.component.html',
-  styleUrls: ['./character-detail.component.scss']
+  styleUrls: ['./character-detail.component.scss'],
+  animations: [expandCollapse],
 })
 export class CharacterDetailComponent {
+
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
   private serviceFactory = inject(EntityCollectionServiceFactory);
+  private router = inject(Router);
 
-  // Writable signals
+  private characterService = this.serviceFactory.create<Character>('Character');
+  private charactersSig = toSignal(this.characterService.entities$, { initialValue: [] });
+
   character: WritableSignal<Character | null> = signal(null);
-  starships: WritableSignal<Starship[]> = signal([]);
-
-  filmId!: string;
-  charId!: string;
 
   constructor() {
-    this.filmId = this.route.parent?.snapshot.paramMap.get('id')!;
-    this.charId = this.route.snapshot.paramMap.get('characterId')!;
+    const charId = this.route.snapshot.paramMap.get('id')!;
+    this.characterService.getByKey(charId);
 
-    this.loadCharacter();
-  }
-
-  private loadCharacter() {
-    const characterService = this.serviceFactory.create<Character>('Character');
-    const starshipService = this.serviceFactory.create<Starship>('Starship');
-
-    // Load character
-    characterService.getByKey(this.charId).subscribe(char => {
-      this.character.set(char);
-
-      if (char?.starships?.length) {
-        const ids = char.starships.map(extractSwapiId);
-
-        // Ensure all starships are loaded
-        starshipService.getAll().subscribe(() => {
-          starshipService.entities$.subscribe(list => {
-            const filtered = list.filter(s => ids.includes(extractSwapiId(s.url)));
-            this.starships.set(filtered);
-          });
-        });
-      } else {
-        this.starships.set([]);
-      }
+    // Keep signal updated
+    effect(() => {
+      const all = this.charactersSig();
+      this.character.set(all.find(c => extractSwapiId(c.url) === charId) ?? null);
     });
   }
 
-  goToStarship(shipId: string) {
-    this.router.navigate(['/films', this.filmId, 'starships', shipId]);
+  sections: Section<any>[] = [
+    createEntitySection<Character, Film, 'films'>(this.serviceFactory, 'Film', () => this.character(), 'films', 'film', true),
+    createEntitySection<Character, Starship, 'starships'>(this.serviceFactory, 'Starship', () => this.character(), 'starships', 'starship'),
+    createEntitySection<Character, Vehicle, 'vehicles'>(this.serviceFactory, 'Vehicle', () => this.character(), 'vehicles', 'vehicle'),
+    createEntitySection<Character, Species, 'species'>(this.serviceFactory, 'Species', () => this.character(), 'species', 'species'),
+    createEntitySection<Character, Planet, 'homeworld'>(this.serviceFactory, 'Planet', () => this.character(), 'homeworld', 'planet')
+  ];
+
+  toggleSection(section: Section<any>) {
+    section.expanded = !section.expanded;
   }
 
-  goBack() {
-    // try to read navigation state
-    const from = history.state?.from as string | undefined;
-
-    if (from) {
-      this.router.navigateByUrl(from);
-    } else {
-      // fallback: rebuild from parent params
-      const filmId = this.route.parent?.snapshot.paramMap.get('id');
-      if (filmId) {
-        this.router.navigate(['/films', filmId]);
-      } else {
-        this.router.navigate(['/films']);
-      }
-    }
+  expandAll() {
+    this.sections.forEach(s => s.expanded = true);
   }
 
+  collapseAll() {
+    this.sections.forEach(s => s.expanded = false);
+  }
 
-  protected extractId = extractSwapiId;
+  goToDetail(entityType: string, entity: { url: string }) {
+    const charId = this.route.snapshot.paramMap.get('id');
+    const entityId = extractSwapiId(entity.url);
+    this.router.navigate(
+      ['/characters', charId, entityType.toLowerCase() + 's', entityId],
+      { state: { from: `/characters/${charId}` } }
+    );
+  }
 }

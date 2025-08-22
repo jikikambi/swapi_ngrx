@@ -1,34 +1,39 @@
-<div class="p-6 space-y-6">
+<div class="p-6 space-y-8">
   @if (character(); as c) {
-    <h1 class="text-3xl font-bold">{{ c.name }}</h1>
-    <p><strong>Height:</strong> {{ c.height }}</p>
-    <p><strong>Mass:</strong> {{ c.mass }}</p>
-    <p><strong>Gender:</strong> {{ c.gender }}</p>
-    <p><strong>Birth Year:</strong> {{ c.birth_year }}</p>
+  <h1 class="text-3xl font-bold">{{ c.name }}</h1>
+  <p class="text-gray-500">Gender: {{ c.gender }} | Birth: {{ c.birth_year }}</p>
+  <p class="mt-4">Height: {{ c.height }} cm | Mass: {{ c.mass }} kg</p>
 
-    <h2 class="text-2xl font-semibold mt-6">Starships</h2>
-    @if (starships().length === 0) {
-      <p class="text-gray-500">No starships for this character.</p>
-    } @else {
-      <ul class="list-disc pl-5">
-        @for (ship of starships(); track ship.url) {
-          <li
-            class="text-blue-600 cursor-pointer hover:underline"
-            (click)="goToStarship(extractId(ship.url))"
-          >
-            {{ ship.name }}
-          </li>
+  <div class="flex gap-4 my-4">
+    <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" (click)="expandAll()">
+      Expand All
+    </button>
+    <button class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700" (click)="collapseAll()">
+      Collapse All
+    </button>
+  </div>
+
+  @for (section of sections; track section.title) {
+  <section class="border rounded-lg shadow overflow-hidden">
+    <button class="w-full flex justify-between items-center p-3 bg-gray-200 hover:bg-gray-300"
+      (click)="toggleSection(section)">
+      <span class="font-semibold text-lg">{{ section.title }}</span>
+      <span>{{ section.expanded ? '−' : '+' }}</span>
+    </button>
+
+    <div [@expandCollapse]="section.expanded ? 'expanded' : 'collapsed'" class="overflow-hidden">
+      <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+        @for (item of section.data(); track item.url) {
+        <div class="p-3 bg-gray-100 rounded" [class.cursor-pointer]="section.hasData()"
+          (click)="section.hasData() && goToDetail(section.type, item)">
+          {{ item.name || item.title }}
+        </div>
         }
-      </ul>
-    }
-
-    <div class="mt-8">
-      <button
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        (click)="goBack()"
-      >
-        ⬅ Back to Film
-      </button>
+      </div>
     </div>
+  </section>
+  }
   }
 </div>
+
+<router-outlet></router-outlet>
